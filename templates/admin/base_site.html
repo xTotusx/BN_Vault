@@ -1,0 +1,27 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | BN VAULT{% endblock %}
+
+{% block branding %}
+<h1 id="site-name"><a href="{% url 'admin:index' %}">BN VAULT ERP</a></h1>
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#FFB366">
+<link rel="apple-touch-icon" href="{% static 'icons/icon-192x192.png' %}">
+
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+            navigator.serviceWorker.register('/sw.js').then(function (registration) {
+                console.log('PWA ServiceWorker registrado con éxito:', registration.scope);
+            }, function (err) {
+                console.log('Error al registrar PWA:', err);
+            });
+        });
+    }
+</script>
+{% endblock %}

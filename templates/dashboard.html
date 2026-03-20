@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BN VAULT | Panel de Control</title>
+
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#FFB366">
+
+    <style>
+        :root {
+            --bg-dark: #121212;
+            --bg-card: #1e1e1e;
+            --primary: #007bff;
+            /* Tu naranja distintivo */
+            --text-main: #ffffff;
+            --text-muted: #a0a0a0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .navbar {
+            width: 100%;
+            background-color: var(--bg-card);
+            padding: 15px 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-sizing: border-box;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        .navbar h1 {
+            margin: 0;
+            color: var(--primary);
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+        }
+
+        .logout-btn {
+            color: var(--text-main);
+            text-decoration: none;
+            background: #333;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+
+        .logout-btn:hover {
+            background: #555;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1000px;
+            margin-top: 40px;
+        }
+
+        .welcome {
+            margin-bottom: 30px;
+        }
+
+        .welcome h2 {
+            margin: 0 0 5px 0;
+            font-size: 2rem;
+        }
+
+        .welcome p {
+            color: var(--text-muted);
+            margin: 0;
+            font-size: 1.1rem;
+        }
+
+        /* Tarjetas de Contadores */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background-color: var(--bg-card);
+            padding: 25px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            border-bottom: 2px solid var(--primary);
+        }
+
+        .stat-card h3 {
+            margin: 0;
+            font-size: 3rem;
+            color: var(--primary);
+        }
+
+        .stat-card p {
+            margin: 10px 0 0 0;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+        }
+
+        /* Botones de Acción */
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .action-btn {
+            display: block;
+            background-color: var(--primary);
+            color: #000;
+            text-decoration: none;
+            text-align: center;
+            padding: 20px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            transition: all 0.3s;
+        }
+
+        .action-btn:hover {
+            background-color: #e69c55;
+            transform: scale(1.02);
+        }
+
+        .action-btn.secondary {
+            background-color: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+        }
+
+        .action-btn.secondary:hover {
+            background-color: rgba(255, 179, 102, 0.1);
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <h1>BN VAULT</h1>
+        <form method="post" action="/logout/" style="margin: 0;">
+            {% csrf_token %}
+            <button type="submit" class="logout-btn" style="border: none; cursor: pointer; font-family: inherit;">Cerrar
+                Sesión</button>
+        </form>
+    </nav>
+
+    <div class="container">
+        <div class="welcome">
+            <h2>Hola, {{ request.user.username|title }} 👋</h2>
+            <p>Bienvenido al Centro de Control Logístico</p>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>{{ total_recepciones }}</h3>
+                <p>Guías Recibidas</p>
+            </div>
+            <div class="stat-card">
+                <h3>{{ total_equipos }}</h3>
+                <p>Artículos en Inventario</p>
+            </div>
+            <div class="stat-card">
+                <h3>{{ total_pallets }}</h3>
+                <p>Pallets Enviados</p>
+            </div>
+        </div>
+
+        <h3 style="margin-bottom: 15px; color: var(--text-muted);">Acciones Rápidas</h3>
+        <div class="actions-grid">
+            <a href="/admin/inventario/equipo/add/" class="action-btn">➕ Registrar Nuevo Equipo</a>
+            <a href="/admin/inventario/recepcion/" class="action-btn secondary">📦 Gestionar Guías</a>
+            <a href="/admin/inventario/equipo/" class="action-btn secondary">💻 Ver Inventario Completo</a>
+            <a href="/admin/inventario/pallet/" class="action-btn secondary">🚚 Armar Pallets y Reportes</a>
+        </div>
+    </div>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('/sw.js');
+            });
+        }
+    </script>
+</body>
+
+</html>

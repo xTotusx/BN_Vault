@@ -1,7 +1,7 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 
 class Recepcion(models.Model):
-    # ¡LISTO! Quitamos el "unique=True". Ahora puedes repetir guías sin que el sistema te bloquee.
     guia_rastreo = models.CharField(max_length=100, verbose_name="Guía de Paquetería o Folio Interno")
     proyecto = models.CharField(max_length=100, verbose_name="Proyecto Asignado")
     origen = models.CharField(max_length=100, verbose_name="Origen / Proveedor (Ej. IBM, Irium)", blank=True)
@@ -82,7 +82,14 @@ class Equipo(models.Model):
         verbose_name_plural = "2. Inventario (CPUs y Periféricos)"
 
     def __str__(self):
-        return f"[{self.tipo_item}] {self.serie} - {self.recepcion.proyecto}"
+        return f"[{self.tipo_item}] {self.serie} - {self.recepcion.proyecto if hasattr(self, 'recepcion') and self.recepcion_id else 'Sin Guía'}"
+
+    def clean(self):
+        # Evita que el sistema explote si se manda vacío y permite validar duplicados
+        if self.serie and hasattr(self, 'recepcion') and self.recepcion_id:
+            duplicado = Equipo.objects.filter(serie=self.serie, recepcion=self.recepcion).exclude(pk=self.pk)
+            if duplicado.exists():
+                raise ValidationError({'serie': 'BLOQUEO DE SEGURIDAD: Este número de serie ya fue registrado en esta Guía de Recepción.'})
 
 class EquipoImagen(models.Model):
     equipo = models.ForeignKey(Equipo, on_delete=models.CASCADE, related_name='imagenes')

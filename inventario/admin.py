@@ -15,11 +15,11 @@ from reportlab.lib.units import inch
 from .models import Equipo, EquipoImagen, Pallet, Recepcion
 
 # =========================================================
-# FUNCIÓN MAESTRA PARA ESTILOS DE EXCEL
+# FUNCIÓN MAESTRA PARA ESTILOS DE EXCEL (AZUL)
 # =========================================================
 def aplicar_estilo_excel(ws):
-    orange_fill = PatternFill(start_color="FFB366", end_color="FFB366", fill_type="solid")
-    bold_font = Font(bold=True)
+    blue_fill = PatternFill(start_color="007bff", end_color="007bff", fill_type="solid")
+    white_font = Font(bold=True, color="FFFFFF")
     center_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
     thin_border = Border(left=Side(style='thin'), right=Side(style='thin'),
                          top=Side(style='thin'), bottom=Side(style='thin'))
@@ -28,11 +28,10 @@ def aplicar_estilo_excel(ws):
         for cell in row:
             cell.alignment = center_align
             cell.border = thin_border
-            if row_idx == 0:  # Fila 1 (Encabezados)
-                cell.fill = orange_fill
-                cell.font = bold_font
+            if row_idx == 0:  
+                cell.fill = blue_fill 
+                cell.font = white_font 
 
-    # Autoajuste inteligente del ancho de las columnas
     for col in ws.columns:
         max_length = 0
         column = col[0].column_letter
@@ -47,13 +46,23 @@ def aplicar_estilo_excel(ws):
 
 
 # =========================================================
-# PANEL 1: RECEPCIONES
+# PANEL 1: RECEPCIONES (¡AHORA CON REGISTRO DE SERIES!)
 # =========================================================
+# 1. Creamos la mini-tabla para que el inventariador registre las series aquí
+class EquipoRecepcionInline(admin.TabularInline):
+    model = Equipo
+    # Solo mostramos lo que le importa al inventariador
+    fields = ['tipo_item', 'marca', 'equipo', 'serie']
+    extra = 1 # Muestra 1 fila vacía por defecto (puedes agregar más con un botón)
+
 @admin.register(Recepcion)
 class RecepcionAdmin(admin.ModelAdmin):
     list_display = ('guia_rastreo', 'proyecto', 'origen', 'fecha_recepcion', 'equipos_procesados')
     search_fields = ('guia_rastreo', 'proyecto', 'origen')
     list_filter = ('fecha_recepcion', 'proyecto')
+    
+    # 2. Conectamos la mini-tabla a la vista de Recepciones
+    inlines = [EquipoRecepcionInline]
 
     def equipos_procesados(self, obj):
         return obj.equipos.count()
@@ -61,7 +70,7 @@ class RecepcionAdmin(admin.ModelAdmin):
 
 
 # =========================================================
-# PANEL 2: EQUIPOS
+# PANEL 2: EQUIPOS (RESTRINGIDO PARA PRACTICANTES)
 # =========================================================
 class EquipoImagenInline(admin.TabularInline):
     model = EquipoImagen
@@ -79,9 +88,13 @@ class EquipoAdmin(admin.ModelAdmin):
     actions = ["exportar_a_excel", "generar_reporte_pdf"]
     
     inlines = [EquipoImagenInline]
+    
+    # ¡LA MAGIA DE SEGURIDAD! Excluimos la guía para que nadie pueda cambiarla desde aquí
+    exclude = ('recepcion',)
 
+    # Quitamos 'recepcion' del panel visual
     fieldsets = (
-        ('Información General', {'fields': ('recepcion', 'tipo_item', 'equipo', 'marca', 'serie', 'serie_remplazo')}),
+        ('Información General', {'fields': ('tipo_item', 'equipo', 'marca', 'serie', 'serie_remplazo')}),
         ('Diagnóstico', {'fields': ('diagnostico', 'estatus', 'inge')}),
         ('Componentes CPU', {'classes': ('grupo-cpu',), 'fields': ('fuente', 'ventilador', 'ssd', 'extensor', 'gabinete', 'disipador', 'mb', 'memoria_ram', 'adaptador_red')}),
         ('Series de Componentes CPU', {'classes': ('grupo-cpu',), 'fields': ('n_serie_fuente', 'n_serie_mb', 'n_serie_ram', 'n_serie_ssd', 'n_serie_gabinete')}),
@@ -250,7 +263,7 @@ class EquipoAdmin(admin.ModelAdmin):
 
 
 # =========================================================
-# PANEL 3: PALLETS (REPORTE MENSUAL Y SEMANAL EXACTO A TU MOLDE)
+# PANEL 3: PALLETS 
 # =========================================================
 @admin.register(Pallet)
 class PalletAdmin(admin.ModelAdmin):
@@ -265,13 +278,11 @@ class PalletAdmin(admin.ModelAdmin):
         return obj.equipos.count()
     total_equipos.short_description = "Cant. de Artículos"
 
-    # --- 1. REPORTE: CORTE MENSUAL (CON GUÍAS) ---
     def generar_corte_mensual(self, request, queryset):
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "Corte Mensual"
         
-        # Exactamente tus encabezados de las fotos + Guía de Entrada
         headers = [
             'GUIA RETORNO', 'FECHA', 'LOCALIDAD', 'EQUIPO', 'MARCA', 
             'SERIE ORIGINAL', 'SERIE REEMPLAZO', 'DIAGNOSTICO', 'STATUS', 
@@ -284,7 +295,7 @@ class PalletAdmin(admin.ModelAdmin):
             for eq in pallet.equipos.all():
                 ws.append([
                     pallet.folio,
-                    pallet.fecha_envio.strftime('%d/%m/%y'), # Formato corto como 03/03/26
+                    pallet.fecha_envio.strftime('%d/%m/%y'),
                     pallet.destino,
                     eq.tipo_item,
                     eq.marca,
@@ -302,7 +313,7 @@ class PalletAdmin(admin.ModelAdmin):
                     "SI" if eq.memoria_ram else "NO",
                     "SI" if eq.adaptador_red else "NO",
                     eq.recepcion.proyecto,
-                    eq.recepcion.guia_rastreo  # La guía original
+                    eq.recepcion.guia_rastreo
                 ])
 
         aplicar_estilo_excel(ws)
@@ -312,13 +323,11 @@ class PalletAdmin(admin.ModelAdmin):
         return response
     generar_corte_mensual.short_description = "Generar Corte Mensual Excel (Con Guías)"
 
-    # --- 2. REPORTE: AVANCE SEMANAL (SIN GUÍAS) ---
     def generar_avance_semanal(self, request, queryset):
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = "Avance Semanal"
         
-        # Igual, pero cortamos en PROYECTO
         headers = [
             'GUIA RETORNO', 'FECHA', 'LOCALIDAD', 'EQUIPO', 'MARCA', 
             'SERIE ORIGINAL', 'SERIE REEMPLAZO', 'DIAGNOSTICO', 'STATUS', 
@@ -358,7 +367,6 @@ class PalletAdmin(admin.ModelAdmin):
         return response
     generar_avance_semanal.short_description = "Generar Avance Semanal Excel (Sin Guías)"
 
-    # --- 3. MANIFIESTO PDF (Se queda igual, funciona perfecto) ---
     def generar_pdf_relacion(self, request, queryset):
         buffer = BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=40, leftMargin=40, topMargin=50, bottomMargin=50)
